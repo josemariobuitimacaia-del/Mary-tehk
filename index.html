@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mary Tehk">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Mary Tehk - Gestão Multi Empresas</title>
+    <meta name="theme-color" content="#6C5CE7">
+    <link rel="icon" href="logo.jpg">
+    <style>
+        :root {
+            --primary: #6C5CE7;
+            --primary-dark: #5A4FCF;
+            --secondary: #00CEC9;
+            --accent: #FD79A8;
+            --success: #00B894;
+            --warning: #FDCB6E;
+            --danger: #E17055;
+            --dark: #2D3436;
+            --card: #FFFFFF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            color: var(--dark);
+            padding: 12px;
+        }
+
+        .container { max-width: 520px; margin: 0 auto; }
+
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 30px rgba(108, 92, 231, 0.4);
+        }
+
+        .logo-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 18px;
+            margin-bottom: 8px;
+            object-fit: cover;
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+
+        header h1 { font-size: 1.6rem; font-weight: 800; }
+        header p { font-size: 0.85rem; opacity: 0.95; margin-top: 2px; }
+        .company-badge {
+            background: rgba(255,255,255,0.25);
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            padding: 16px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            border-left: 5px solid var(--primary);
+        }
+        .stat-card.sales { border-left-color: var(--success); }
+        .stat-card.stock { border-left-color: var(--warning); }
+        .stat-card.alert { border-left-color: var(--danger); }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-card.sales .stat-number {
+            background: linear-gradient(135deg, var(--success), #55efc4);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: #636e72;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 14px;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .form-group { margin-bottom: 12px; }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #636e72;
+            margin-bottom: 6px;
+        }
+        input, select {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: #fafafa;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 6px 15px rgba(108, 92, 231, 0.35);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #00cec9);
+            color: white;
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #636e72, #2d3436);
+            color: white;
+        }
+        .btn-small {
+            width: auto;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #d63031);
+            color: white;
+        }
+
+        .product-item, .sale-item, .company-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border-radius: 14px;
+            border-left: 4px solid var(--secondary);
+        }
+        .product-info strong { display: block; font-size: 1rem; }
+        .product-info small { color: #636e72; font-size: 0.85rem; }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+        .badge-low { background: #ffeaa7; color: #d35400; }
+        .badge-late { background: #fab1a0; color: #c0392b; }
+        .badge-ok { background: #dfe6e9; color: #2d3436; }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            background: rgba(255,255,255,0.2);
+            padding: 6px;
+            border-radius: 14px;
+        }
+        .tab {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 6px;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: white;
+        }
+        .tab.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .empty {
+            text-align: center;
+            padding: 30px 20px;
+            color: #b2bec3;
+        }
+        .empty-icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+        footer {
+            text-align: center;
+            color: white;
+            font-size: 0.75rem;
+            margin-top: 20px;
+            opacity: 0.9;
+        }
+
+        .data-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .data-actions .btn {
+            flex: 1;
+            font-size: 0.85rem;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img src="logo.jpg" alt="Mary Tehk" alt="Mary Tehk Logo" class="logo-img">
+            <h1>Mary Tehk</h1>
+            <p>Gestão Multi Empresas</p>
+            <div class="company-badge" id="currentCompanyName">Nenhuma empresa selecionada</div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalProducts">0</div>
+                <div class="stat-label">Produtos</div>
+            </div>
+            <div class="stat-card sales">
+                <div class="stat-number" id="todaySales">0 Kz</div>
+                <div class="stat-label">Vendas Hoje</div>
+            </div>
+            <div class="stat-card stock">
+                <div class="stat-number" id="totalStock">0</div>
+                <div class="stat-label">Itens em Stock</div>
+            </div>
+            <div class="stat-card alert">
+                <div class="stat-number" id="lowStock">0</div>
+                <div class="stat-label">Stock Baixo</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('companies')">Empresas</div>
+            <div class="tab" onclick="switchTab('products')">Produtos</div>
+            <div class="tab" onclick="switchTab('sales')">Vendas</div>
+            <div class="tab" onclick="switchTab('payments')">Pagamento</div>
+            <div class="tab" onclick="switchTab('history')">Histórico</div>
+        </div>
+
+        <!-- Empresas -->
+        <div id="tab-companies">
+            <div class="card">
+                <h2>🏢 Nova Empresa</h2>
+                <div class="form-group">
+                    <label>Nome da Empresa</label>
+                    <input type="text" id="companyName" placeholder="Ex: Loja Central Luanda">
+                </div>
+                <button class="btn btn-primary" onclick="createCompany()">Criar Empresa</button>
+            </div>
+            <div class="card">
+                <h2>📋 Empresas Registadas</h2>
+                <div id="companiesList">
+                    <div class="empty"><div class="empty-icon">🏢</div>Nenhuma empresa criada</div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>💾 Armazenamento de Dados</h2>
+                <p style="font-size:0.85rem; color:#636e72; margin-bottom:12px;">Exporta ou importa todos os dados das empresas.</p>
+                <div class="data-actions">
+                    <button class="btn btn-success" onclick="exportData()">Exportar Dados</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Importar Dados</button>
+                </div>
+                <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+            </div>
+        </div>
+
+        <!-- Produtos -->
+        <div id="tab-products" style="display:none;">
+            <div class="card">
+                <h2>📦 Novo Produto</h2>
+                <div class="form-group">
+                    <label>Nome do Produto</label>
+                    <input type="text" id="productName" placeholder="Ex: Arroz 1kg">
+                </div>
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="productCategory">
+                        <option value="Alimentos">Alimentos</option>
+                        <option value="Bebidas">Bebidas</option>
+                        <option value="Limpeza">Limpeza</option>
+                        <option value="Higiene">Higiene</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Preço (Kz)</label>
+                    <input type="number" id="productPrice" placeholder="0" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Quantidade em Stock</label>
+                    <input type="number" id="productStock" placeholder="0" min="0">
+                </div>
+                <button class="btn btn-primary" onclick="addProduct()">Adicionar Produto</button>
+            </div>
+            <div class="card">
+                <h2>📋 Lista de Produtos</h2>
+                <input type="text" id="searchProduct" placeholder="Pesquisar..." oninput="filterProducts()" style="margin-bottom:12px;">
+                <div id="productsList">
+                    <div class="empty"><div class="empty-icon">📦</div>Selecione uma empresa primeiro</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vendas -->
+        <div id="tab-sales" style="display:none;">
+            <div class="card">
+                <h2>💰 Registar Venda</h2>
+                <div class="form-group">
+                    <label>Produto</label>
+                    <select id="saleProduct"><option value="">Selecione o produto</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Quantidade</label>
+                    <input type="number" id="saleQuantity" placeholder="1" min="1" value="1">
+                </div>
+                <button class="btn btn-success" onclick="registerSale()">Registar Venda</button>
+            </div>
+            <div class="card">
+                <h2>📊 Vendas de Hoje</h2>
+                <div id="todaySalesList">
+                    <div class="empty"><div class="empty-icon">📈</div>Nenhuma venda hoje</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagamento -->
+        <div id="tab-payments" style="display:none;">
+            <div class="card">
+                <h2>💳 Pagamento da Empresa</h2>
+                <div id="payStatus"></div>
+                <div class="form-group" style="margin-top:12px;"><label>Plano</label><select id="payPlan"></select></div>
+                <div class="form-group"><label>Referência / Nº do comprovativo (opcional)</label><input type="text" id="payRef" placeholder="Ex: 123456"></div>
+                <div id="payInfo"></div>
+                <button class="btn btn-success" onclick="registerPayment()">Confirmar Pagamento</button>
+            </div>
+            <div class="card"><h2>🧾 Histórico de Pagamentos</h2><div id="payHistory"></div></div>
+        </div>
+
+        <!-- Histórico -->
+        <div id="tab-history" style="display:none;">
+            <div class="card">
+                <h2>📜 Histórico Completo</h2>
+                <div id="historyList">
+                    <div class="empty"><div class="empty-icon">📜</div>Nenhum histórico</div>
+                </div>
+            </div>
+        </div>
+
+        <footer>Mary Tehk © 2026 • Aplicativo de Gestão • Angola</footer>
+    </div>
+
+    <script>
+        let companies = JSON.parse(localStorage.getItem('maryTehk_companies') || '[]');
+        let currentCompanyId = localStorage.getItem('maryTehk_currentCompany') || null;
+
+        function getCompanyData(companyId) {
+            const key = `maryTehk_data_${companyId}`;
+            try {
+                return JSON.parse(localStorage.getItem(key)) || { products: [], sales: [] };
+            } catch(e) {
+                return { products: [], sales: [] };
+            }
+        }
+
+        function saveCompanyData(companyId, data) {
+            const key = `maryTehk_data_${companyId}`;
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+
+        const TABS = ['companies','products','sales','payments','history'];
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', TABS[i] === tab));
+            TABS.forEach(t => {
+                const el = document.getElementById('tab-' + t);
+                if (el) el.style.display = t === tab ? 'block' : 'none';
+            });
+            updateUI();
+        }
+
+        function updateUI() {
+            const company = companies.find(c => c.id == currentCompanyId);
+            document.getElementById('currentCompanyName').textContent = company ? company.name : 'Nenhuma empresa selecionada';
+            renderPayments();
+
+            if (!currentCompanyId) {
+                document.getElementById('totalProducts').textContent = '0';
+                document.getElementById('todaySales').textContent = '0 Kz';
+                document.getElementById('totalStock').textContent = '0';
+                document.getElementById('lowStock').textContent = '0';
+                renderCompanies();
+                return;
+            }
+
+            const data = getCompanyData(currentCompanyId);
+            const products = data.products || [];
+            const sales = data.sales || [];
+            const today = new Date().toDateString();
+
+            document.getElementById('totalProducts').textContent = products.length;
+            const todayTotal = sales.filter(s => new Date(s.date).toDateString() === today).reduce((sum, s) => sum + (s.total || 0), 0);
+            document.getElementById('todaySales').textContent = formatMoney(todayTotal);
+            document.getElementById('totalStock').textContent = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+            document.getElementById('lowStock').textContent = products.filter(p => p.stock <= 5 && p.stock > 0).length;
+
+            renderCompanies();
+            renderProducts();
+            renderTodaySales(sales);
+            renderHistory(sales);
+            updateSaleSelect(products);
+        }
+
+        function renderCompanies() {
+            const list = document.getElementById('companiesList');
+            if (!list) return;
+            if (companies.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">🏢</div>Nenhuma empresa criada</div>';
+                return;
+            }
+            list.innerHTML = companies.map(c => `
+                <div class="company-item">
+                    <div class="product-info">
+                        <strong>${esc(c.name)}</strong>
+                        <small>${c.id == currentCompanyId ? '✅ Ativa agora' : 'Clica para usar'} ${payBadge(c)}</small>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary btn-small" onclick="selectCompany('${c.id}')">Usar</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteCompany('${c.id}')">✕</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderProducts(filter = '') {
+            if (!currentCompanyId) return;
+            const data = getCompanyData(currentCompanyId);
+            let products = data.products || [];
+            if (filter) {
+                products = products.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+            }
+            const list = document.getElementById('productsList');
+            if (!list) return;
+            if (products.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>Nenhum produto</div>';
+                return;
+            }
+            list.innerHTML = products.map(p => {
+                const badge = p.stock <= 0 ? '<span class="badge badge-late">Esgotado</span>' : p.stock <= 5 ? '<span class="badge badge-low">Baixo</span>' : `<span class="badge badge-ok">${p.stock}</span>`;
+                return `
+                    <div class="product-item">
+                        <div class="product-info">
+                            <strong>${esc(p.name)} ${badge}</strong>
+                            <small>${esc(p.category || 'Geral')} • ${formatMoney(p.price)}</small>
+                        </div>
+                        <button class="btn btn-danger btn-small" onclick="deleteProduct(${p.id})">✕</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterProducts() {
+            const input = document.getElementById('searchProduct');
+            renderProducts(input ? input.value : '');
+        }
+
+        function renderTodaySales(sales) {
+            const today = new Date().toDateString();
+            const todaySales = sales.filter(s => new Date(s.date).toDateString() === today);
+            const list = document.getElementById('todaySalesList');
+            if (!list) return;
+            if (todaySales.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">📈</div>Nenhuma venda hoje</div>';
+                return;
+            }
+            list.innerHTML = todaySales.slice().reverse().map(s => `
+                <div class="sale-item">
+                    <div class="product-info">
+                        <strong>${esc(s.productName)}</strong>
+                        <small>${s.quantity} × ${formatMoney(s.price)}</small>
+                    </div>
+                    <strong style="color:#00B894;">${formatMoney(s.total)}</strong>
+                </div>
+            `).join('');
+        }
+
+        function renderHistory(sales) {
+            const list = document.getElementById('historyList');
+            if (!list) return;
+            if (sales.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">📜</div>Nenhum histórico</div>';
+                return;
+            }
+            list.innerHTML = sales.slice().reverse().slice(0, 30).map(s => `
+                <div class="sale-item">
+                    <div class="product-info">
+                        <strong>${esc(s.productName)}</strong>
+                        <small>${formatDate(s.date)}</small>
+                    </div>
+                    <strong style="color:#00B894;">${formatMoney(s.total)}</strong>
+                </div>
+            `).join('');
+        }
+
+        function updateSaleSelect(products) {
+            const select = document.getElementById('saleProduct');
+            if (!select) return;
+            select.innerHTML = '<option value="">Selecione o produto</option>' +
+                products.filter(p => p.stock > 0).map(p => `<option value="${p.id}">${esc(p.name)} (${p.stock})</option>`).join('');
+        }
+
+        function createCompany() {
+            const nameInput = document.getElementById('companyName');
+            const name = nameInput.value.trim();
+            if (!name) { alert('Digite o nome da empresa'); return; }
+            const id = Date.now().toString();
+            const now = new Date().toISOString();
+            companies.push({ id, name, created: now, plan: 'min', lastPaid: now, payments: [] });
+            localStorage.setItem('maryTehk_companies', JSON.stringify(companies));
+            nameInput.value = '';
+            updateUI();
+            alert('Empresa "' + name + '" criada com sucesso!');
+        }
+
+        function selectCompany(id) {
+            currentCompanyId = id;
+            localStorage.setItem('maryTehk_currentCompany', id);
+            switchTab('products');
+        }
+
+        function deleteCompany(id) {
+            if (!confirm('Apagar esta empresa e todos os dados?')) return;
+            companies = companies.filter(c => c.id !== id);
+            localStorage.setItem('maryTehk_companies', JSON.stringify(companies));
+            localStorage.removeItem(`maryTehk_data_${id}`);
+            if (currentCompanyId === id) {
+                currentCompanyId = null;
+                localStorage.removeItem('maryTehk_currentCompany');
+            }
+            updateUI();
+        }
+
+        function addProduct() {
+            if (!currentCompanyId) { alert('Selecione uma empresa primeiro!'); return; }
+            const name = document.getElementById('productName').value.trim();
+            const category = document.getElementById('productCategory').value;
+            const price = parseFloat(document.getElementById('productPrice').value);
+            const stock = parseInt(document.getElementById('productStock').value);
+            if (!name || isNaN(price) || isNaN(stock)) { alert('Preencha todos os campos corretamente'); return; }
+
+            const data = getCompanyData(currentCompanyId);
+            data.products = data.products || [];
+            const co = companies.find(c => c.id == currentCompanyId);
+            const lim = PLANS[(co && co.plan) || 'min'].maxProducts;
+            if (data.products.length >= lim) { alert('Limite de ' + lim + ' produtos do plano Mínimo. Passe ao plano Máximo no separador Pagamento.'); switchTab('payments'); return; }
+            data.products.push({ id: Date.now(), name, category, price, stock });
+            saveCompanyData(currentCompanyId, data);
+
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('productStock').value = '';
+            updateUI();
+            alert('Produto adicionado!');
+        }
+
+        function registerSale() {
+            if (!currentCompanyId) { alert('Selecione uma empresa primeiro!'); return; }
+            const productId = parseInt(document.getElementById('saleProduct').value);
+            const quantity = parseInt(document.getElementById('saleQuantity').value);
+            if (!productId || !quantity || quantity < 1) { alert('Selecione produto e quantidade'); return; }
+
+            const data = getCompanyData(currentCompanyId);
+            const product = data.products.find(p => p.id === productId);
+            if (!product || product.stock < quantity) { alert('Stock insuficiente!'); return; }
+
+            product.stock -= quantity;
+            data.sales = data.sales || [];
+            data.sales.push({
+                id: Date.now(),
+                productName: product.name,
+                quantity,
+                price: product.price,
+                total: product.price * quantity,
+                date: new Date().toISOString()
+            });
+            saveCompanyData(currentCompanyId, data);
+            document.getElementById('saleQuantity').value = '1';
+            updateUI();
+            alert('Venda registada com sucesso!');
+        }
+
+        function deleteProduct(id) {
+            if (!confirm('Apagar este produto?')) return;
+            const data = getCompanyData(currentCompanyId);
+            data.products = data.products.filter(p => p.id !== id);
+            saveCompanyData(currentCompanyId, data);
+            updateUI();
+        }
+
+        // Data Export / Import
+        function exportData() {
+            const allData = {
+                companies: companies,
+                currentCompanyId: currentCompanyId,
+                companyData: {}
+            };
+            companies.forEach(c => {
+                allData.companyData[c.id] = getCompanyData(c.id);
+            });
+            const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'mary-tehk-dados-' + new Date().toISOString().slice(0,10) + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('Dados exportados com sucesso!');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.companies && data.companyData) {
+                        companies = data.companies; migrateCompanies();
+                        currentCompanyId = data.currentCompanyId || null;
+                        localStorage.setItem('maryTehk_companies', JSON.stringify(companies));
+                        if (currentCompanyId) localStorage.setItem('maryTehk_currentCompany', currentCompanyId);
+                        Object.keys(data.companyData).forEach(id => {
+                            saveCompanyData(id, data.companyData[id]);
+                        });
+                        updateUI();
+                        alert('Dados importados com sucesso!');
+                    } else {
+                        alert('Ficheiro inválido');
+                    }
+                } catch(err) {
+                    alert('Erro ao importar: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function formatMoney(v) { 
+            return (v || 0).toLocaleString('pt-AO') + ' Kz'; 
+        }
+        function formatDate(d) {
+            const date = new Date(d);
+            return date.toLocaleDateString('pt-AO') + ' ' + date.toLocaleTimeString('pt-AO', {hour:'2-digit', minute:'2-digit'});
+        }
+
+        // ===== Pagamentos =====
+        // Preços editáveis. Não há destino do dinheiro definido (PAYMENT_INFO fica vazio por agora).
+        const PLANS = {
+            min: { name: 'Mínimo', price: 5000, maxProducts: 50 },
+            max: { name: 'Máximo', price: 15000, maxProducts: Infinity }
+        };
+        const PERIOD_DAYS = 30, DELETE_AFTER_DAYS = 34, DAY = 864e5;
+        const PAYMENT_INFO = '';
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const saveCompanies = () => localStorage.setItem('maryTehk_companies', JSON.stringify(companies));
+        const daysLeft = c => Math.ceil((new Date(c.lastPaid).getTime() + DELETE_AFTER_DAYS * DAY - Date.now()) / DAY);
+
+        function migrateCompanies() {
+            companies.forEach(c => { c.plan = PLANS[c.plan] ? c.plan : 'min'; c.lastPaid = c.lastPaid || new Date().toISOString(); c.payments = c.payments || []; });
+            saveCompanies();
+        }
+        function payBadge(c) {
+            const d = daysLeft(c);
+            return DELETE_AFTER_DAYS - d >= PERIOD_DAYS
+                ? `<span class="badge badge-late">Em atraso · apaga em ${d}d</span>`
+                : `<span class="badge badge-ok">${PLANS[c.plan].name} · em dia</span>`;
+        }
+        function renderPayments() {
+            const st = document.getElementById('payStatus');
+            if (!st) return;
+            const c = companies.find(x => x.id == currentCompanyId);
+            document.getElementById('payPlan').innerHTML = Object.entries(PLANS).map(([k, p]) =>
+                `<option value="${k}" ${c && c.plan === k ? 'selected' : ''}>${p.name} — ${formatMoney(p.price)}/mês (${p.maxProducts === Infinity ? 'produtos ilimitados' : 'até ' + p.maxProducts + ' produtos'})</option>`).join('');
+            document.getElementById('payInfo').innerHTML = PAYMENT_INFO ? `<p style="font-size:0.85rem;margin-bottom:10px;">${esc(PAYMENT_INFO)}</p>` : '';
+            if (!c) {
+                st.innerHTML = '<div class="empty"><div class="empty-icon">💳</div>Selecione uma empresa primeiro</div>';
+                document.getElementById('payHistory').innerHTML = '';
+                return;
+            }
+            const t = new Date(c.lastPaid).getTime();
+            st.innerHTML = `<div class="product-item"><div class="product-info"><strong>${esc(c.name)} ${payBadge(c)}</strong>
+                <small>Pagar até ${new Date(t + PERIOD_DAYS * DAY).toLocaleDateString('pt-AO')} • Sem pagamento, é apagada em ${new Date(t + DELETE_AFTER_DAYS * DAY).toLocaleDateString('pt-AO')}</small></div></div>`;
+            document.getElementById('payHistory').innerHTML = c.payments.length
+                ? c.payments.slice().reverse().map(p => `<div class="sale-item"><div class="product-info"><strong>Plano ${PLANS[p.plan].name}</strong><small>${formatDate(p.date)}${p.ref ? ' • Ref: ' + esc(p.ref) : ''}</small></div><strong style="color:#00B894;">${formatMoney(p.amount)}</strong></div>`).join('')
+                : '<div class="empty"><div class="empty-icon">🧾</div>Sem pagamentos</div>';
+        }
+        function registerPayment() {
+            const c = companies.find(x => x.id == currentCompanyId);
+            if (!c) { alert('Selecione uma empresa primeiro!'); return; }
+            const plan = document.getElementById('payPlan').value, p = PLANS[plan];
+            if ((getCompanyData(c.id).products || []).length > p.maxProducts) { alert('Esta empresa tem mais de ' + p.maxProducts + ' produtos. Escolha o plano Máximo.'); return; }
+            if (!confirm('Confirmar pagamento de ' + formatMoney(p.price) + ' (plano ' + p.name + ')?')) return;
+            const now = new Date().toISOString();
+            c.plan = plan; c.lastPaid = now;
+            c.payments.push({ id: Date.now(), date: now, plan, amount: p.price, ref: document.getElementById('payRef').value.trim() });
+            saveCompanies();
+            document.getElementById('payRef').value = '';
+            updateUI();
+            alert('Pagamento registado! Válido por ' + PERIOD_DAYS + ' dias.');
+        }
+        // Apaga empresas sem pagamento há 34 dias (corre ao abrir, de hora a hora e ao voltar à app)
+        function purgeExpired() {
+            const gone = companies.filter(c => daysLeft(c) <= 0);
+            if (!gone.length) return;
+            gone.forEach(c => localStorage.removeItem('maryTehk_data_' + c.id));
+            companies = companies.filter(c => !gone.includes(c));
+            saveCompanies();
+            if (gone.some(c => c.id == currentCompanyId)) { currentCompanyId = null; localStorage.removeItem('maryTehk_currentCompany'); }
+            updateUI();
+            alert('Empresas apagadas por falta de pagamento (' + DELETE_AFTER_DAYS + ' dias): ' + gone.map(c => c.name).join(', '));
+        }
+
+        // Start
+        migrateCompanies();
+        purgeExpired();
+        updateUI();
+        setInterval(purgeExpired, 36e5);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) purgeExpired(); });
+        if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registado'))
+                    .catch(err => console.log('Erro no Service Worker:', err));
+            });
+        }
+    </script>
+</body>
+</html>
