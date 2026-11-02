@@ -295,7 +295,7 @@
             <div class="tab" onclick="switchTab('products')">Produtos</div>
             <div class="tab" onclick="switchTab('sales')">Vendas</div>
             <div class="tab" onclick="switchTab('payments')">Pagamento</div>
-            <div class="tab" onclick="switchTab('history')">Histórico</div>
+            <div class="tab" onclick="switchTab('history')">📊 Painel</div>
         </div>
 
         <!-- Empresas -->
@@ -351,6 +351,7 @@
                     <label>Quantidade em Stock</label>
                     <input type="number" id="productStock" placeholder="0" min="0">
                 </div>
+                <div class="form-group"><label>Preço de compra (opcional — dá o lucro)</label><input type="number" id="productCost" placeholder="0" inputmode="decimal"></div>
                 <button class="btn btn-primary" onclick="addProduct()">Adicionar Produto</button>
             </div>
             <div class="card">
@@ -399,14 +400,15 @@
 
         <!-- Histórico -->
         <div id="tab-history" style="display:none;">
+            <div id="prodSheet"></div>
             <div class="card">
-                <h2>📊 Relatório</h2>
-                <div class="form-group"><select id="repPeriod" onchange="updateUI()"><option value="1">Hoje</option><option value="7" selected>Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="0">Tudo</option></select></div>
+                <h2>📊 Painel de Vendas</h2>
+                <div class="form-group"><select id="repPeriod" onchange="updateUI()"><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="365">Este ano (por mês)</option></select></div>
                 <div id="repBox"></div>
             </div>
             <div class="card">
-                <h2>📜 Histórico Completo</h2>
-                <div id="historyList">
+                <h2 style="cursor:pointer" onclick="const l=document.getElementById('historyList');l.style.display=l.style.display==='none'?'block':'none'">📜 Ver lista de vendas (anular) ▾</h2>
+                <div id="historyList" style="display:none;">
                     <div class="empty"><div class="empty-icon">📜</div>Nenhum histórico</div>
                 </div>
             </div>
@@ -519,16 +521,14 @@
                 return;
             }
             list.innerHTML = products.map(p => {
-                const badge = p.stock <= 0 ? '<span class="badge badge-late">Esgotado</span>' : p.stock <= 5 ? '<span class="badge badge-low">Baixo</span>' : `<span class="badge badge-ok">${p.stock}</span>`;
-                return `
-                    <div class="product-item">
-                        <div class="product-info">
-                            <strong>${esc(p.name)} ${badge}</strong>
-                            <small>${esc(p.category || 'Geral')} • ${formatMoney(p.price)}</small>
-                        </div>
-                        <span><button class="btn btn-small" style="background:#DFE6E9;color:#2D3436" onclick="editProduct(${p.id})">✏️</button> <button class="btn btn-danger btn-small" onclick="deleteProduct(${p.id})">✕</button></span>
-                    </div>
-                `;
+                const badge = p.stock <= 0 ? '<span class="badge badge-late">Esgotado</span>' : p.stock <= 5 ? `<span class="badge badge-low">${p.stock}</span>` : `<span class="badge badge-ok">${p.stock}</span>`;
+                return `<div class="product-item">
+                    <div class="product-info" onclick="sheet(${p.id},1)" style="cursor:pointer"><strong>${esc(p.name)} ${badge}</strong><small>${esc(p.category || 'Geral')}${p.price ? ' • ' + formatMoney(p.price) : ''}</small></div>
+                    <span style="display:flex;gap:6px;align-items:center">
+                        <button class="btn btn-danger btn-small" style="min-width:42px;font-size:1.2rem" onclick="quick(${p.id},-1)">−</button>
+                        <button class="btn btn-success btn-small" style="min-width:42px;font-size:1.2rem" onclick="quick(${p.id},1)">+</button>
+                        <button class="btn btn-small" style="background:#DFE6E9;color:#2D3436" onclick="editProduct(${p.id})">✏️</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteProduct(${p.id})">✕</button></span></div>`;
             }).join('');
         }
 
@@ -560,11 +560,8 @@
         function renderHistory(sales) {
             const list = document.getElementById('historyList');
             if (!list) return;
-            const days = +document.getElementById('repPeriod').value, from = days ? Date.now() - days * DAY : 0;
-            const f = sales.filter(x => new Date(x.date).getTime() >= from), tot = f.reduce((a, x) => a + x.total, 0), top = {};
-            f.forEach(x => top[x.productName] = (top[x.productName] || 0) + x.quantity);
-            document.getElementById('repBox').innerHTML = `<div class="product-item"><div class="product-info"><strong>${formatMoney(tot)}</strong><small>${f.length} vendas${f.length ? ' • média ' + formatMoney(tot / f.length) : ''}</small></div></div>` +
-                Object.entries(top).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n, q]) => `<div class="sale-item"><div class="product-info"><strong>🏆 ${esc(n)}</strong></div><strong>${q} un.</strong></div>`).join('');
+            renderDash(getCompanyData(currentCompanyId));
+            if (window.sheetId) sheet(window.sheetId);
             list.innerHTML = sales.length ? sales.slice().reverse().slice(0, 50).map(x => `
                 <div class="sale-item"><div class="product-info"><strong>${esc(x.productName)} × ${x.quantity}</strong><small>${formatDate(x.date)}</small></div>
                 <span><strong style="color:#00B894;">${formatMoney(x.total)}</strong>
@@ -596,6 +593,7 @@
             currentCompanyId = id;
             localStorage.setItem('maryTehk_currentCompany', id);
             switchTab('products');
+            stockAlert();
         }
 
         function deleteCompany(id) {
@@ -614,23 +612,25 @@
             if (!currentCompanyId) { toast('Selecione uma empresa primeiro!'); return; }
             const name = document.getElementById('productName').value.trim();
             const category = document.getElementById('productCategory').value;
-            const price = parseFloat(document.getElementById('productPrice').value);
+            const price = parseFloat(document.getElementById('productPrice').value) || 0;
+            const cost = parseFloat(document.getElementById('productCost').value) || 0;
             const stock = parseInt(document.getElementById('productStock').value);
-            if (!name || isNaN(price) || isNaN(stock)) { toast('Preencha todos os campos corretamente'); return; }
+            if (!name || isNaN(stock)) { toast('Preencha todos os campos corretamente'); return; }
 
             const data = getCompanyData(currentCompanyId);
             data.products = data.products || [];
             if (window.editId) {
                 const ep = data.products.find(p => p.id === window.editId);
-                if (ep) { Object.assign(ep, { name, category, price, stock }); }
+                if (ep) { Object.assign(ep, { name, category, price, stock, cost }); }
                 window.editId = null; saveCompanyData(currentCompanyId, data);
-                ['productName','productPrice','productStock'].forEach(i => document.getElementById(i).value = '');
+                ['productName','productPrice','productStock','productCost'].forEach(i => document.getElementById(i).value = '');
                 updateUI(); toast('Produto atualizado!'); return;
             }
             const co = companies.find(c => c.id == currentCompanyId);
             const lim = PLANS[(co && co.plan) || 'min'].maxProducts;
             if (data.products.length >= lim) { toast('Limite de ' + lim + ' produtos do plano Mínimo. Passe ao plano Máximo no separador Pagamento.'); switchTab('payments'); return; }
-            data.products.push({ id: Date.now(), name, category, price, stock });
+            data.products.push({ id: Date.now(), name, category, price, stock, cost });
+            document.getElementById('productCost').value = '';
             saveCompanyData(currentCompanyId, data);
 
             document.getElementById('productName').value = '';
@@ -658,6 +658,7 @@
                 productName: product.name,
                 quantity,
                 price: product.price,
+                cost: product.cost || 0,
                 total: product.price * quantity,
                 date: new Date().toISOString()
             });
@@ -738,6 +739,7 @@
             max: { name: 'Máximo', price: 15000, maxProducts: Infinity }
         };
         const PERIOD_DAYS = 30, DELETE_AFTER_DAYS = 34, DAY = 864e5;
+        const AUTO_DELETE = false; // ligar (true) quando vender a empresas
         const PAYMENT_INFO = '';
         const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const saveCompanies = () => localStorage.setItem('maryTehk_companies', JSON.stringify(companies));
@@ -750,7 +752,7 @@
         function payBadge(c) {
             const d = daysLeft(c);
             return DELETE_AFTER_DAYS - d >= PERIOD_DAYS
-                ? `<span class="badge badge-late">Em atraso · apaga em ${d}d</span>`
+                ? `<span class="badge badge-late">Em atraso${AUTO_DELETE ? ' · apaga em ' + d + 'd' : ''}</span>`
                 : `<span class="badge badge-ok">${PLANS[c.plan].name} · em dia</span>`;
         }
         function renderPayments() {
@@ -767,7 +769,7 @@
             }
             const t = new Date(c.lastPaid).getTime();
             st.innerHTML = `<div class="product-item"><div class="product-info"><strong>${esc(c.name)} ${payBadge(c)}</strong>
-                <small>Pagar até ${new Date(t + PERIOD_DAYS * DAY).toLocaleDateString('pt-AO')} • Sem pagamento, é apagada em ${new Date(t + DELETE_AFTER_DAYS * DAY).toLocaleDateString('pt-AO')}</small></div></div>`;
+                <small>Pagar até ${new Date(t + PERIOD_DAYS * DAY).toLocaleDateString('pt-AO')} ${AUTO_DELETE ? '• Sem pagamento, é apagada em ' + new Date(t + DELETE_AFTER_DAYS * DAY).toLocaleDateString('pt-AO') : ''}</small></div></div>`;
             document.getElementById('payHistory').innerHTML = c.payments.length
                 ? c.payments.slice().reverse().map(p => `<div class="sale-item"><div class="product-info"><strong>Plano ${PLANS[p.plan].name}</strong><small>${formatDate(p.date)}${p.ref ? ' • Ref: ' + esc(p.ref) : ''}</small></div><strong style="color:#00B894;">${formatMoney(p.amount)}</strong></div>`).join('')
                 : '<div class="empty"><div class="empty-icon">🧾</div>Sem pagamentos</div>';
@@ -788,6 +790,7 @@
         }
         // Apaga empresas sem pagamento há 34 dias (corre ao abrir, de hora a hora e ao voltar à app)
         function purgeExpired() {
+            if (!AUTO_DELETE) return;
             const gone = companies.filter(c => daysLeft(c) <= 0);
             if (!gone.length) return;
             gone.forEach(c => localStorage.removeItem('maryTehk_data_' + c.id));
@@ -812,6 +815,7 @@
             document.getElementById('productCategory').value = p.category || 'Geral';
             document.getElementById('productPrice').value = p.price;
             document.getElementById('productStock').value = p.stock;
+            document.getElementById('productCost').value = p.cost || '';
             document.getElementById('productName').scrollIntoView({ behavior: 'smooth', block: 'center' });
             toast('Altere os dados e toque em adicionar para guardar');
         }
@@ -849,6 +853,78 @@
             else { toast('PIN errado'); i.value = ''; }
         }
 
+        // ===== Painel e gráficos =====
+        const MN = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        function barChart(a) {
+            const W = 320, H = 110, m = Math.max(1, ...a.map(x => x.v)), w = W / a.length;
+            return `<svg viewBox="0 0 ${W} ${H + 18}" style="width:100%">` + a.map((x, i) => {
+                const h = Math.round(x.v / m * H);
+                return `<rect x="${i * w + w * .15}" y="${H - h}" width="${w * .7}" height="${Math.max(h, 1)}" rx="3" fill="#6C5CE7"/>` +
+                    (a.length <= 14 || i % Math.ceil(a.length / 8) === 0 ? `<text x="${i * w + w / 2}" y="${H + 13}" font-size="9" text-anchor="middle" fill="#636E72">${x.l}</text>` : '');
+            }).join('') + '</svg>';
+        }
+        function renderDash(data) {
+            const sales = data.sales || [], prods = data.products || [], ent = data.entries || [], per = +document.getElementById('repPeriod').value, now = new Date();
+            const f = sales.filter(x => new Date(x.date).getTime() >= Date.now() - per * DAY);
+            const units = f.reduce((a, x) => a + x.quantity, 0), rev = f.reduce((a, x) => a + x.total, 0);
+            const wc = f.filter(x => x.cost > 0), pf = wc.reduce((a, x) => a + (x.price - x.cost) * x.quantity, 0), b = [];
+            if (per >= 365) {
+                for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); b.push({ l: MN[d.getMonth()], v: 0, k: d.getFullYear() * 12 + d.getMonth() }); }
+                f.forEach(x => { const d = new Date(x.date), o = b.find(y => y.k === d.getFullYear() * 12 + d.getMonth()); if (o) o.v += x.quantity; });
+            } else {
+                for (let i = per - 1; i >= 0; i--) { const d = new Date(Date.now() - i * DAY); b.push({ l: d.getDate(), v: 0, k: d.toDateString() }); }
+                f.forEach(x => { const o = b.find(y => y.k === new Date(x.date).toDateString()); if (o) o.v += x.quantity; });
+            }
+            const kp = (t, v) => `<div style="flex:1;background:#F5F3FF;border-radius:12px;padding:10px;text-align:center"><div style="font-size:1.1rem;font-weight:800;color:#6C5CE7">${v}</div><small>${t}</small></div>`;
+            const m = {};
+            f.forEach(x => { const k = x.productId || x.productName; (m[k] = m[k] || { id: x.productId, n: x.productName, q: 0 }).q += x.quantity; });
+            const top = Object.values(m).sort((a, c) => c.q - a.q).slice(0, 8), mx = top.length ? top[0].q : 1;
+            const stopped = prods.filter(p => p.stock > 0 && !m[p.id]).slice(0, 3);
+            let rows = '';
+            for (let i = 0; i < 6; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1), k = d.getFullYear() * 12 + d.getMonth(), inM = x => { const y = new Date(x.date); return y.getFullYear() * 12 + y.getMonth() === k; };
+                const ms = sales.filter(inM), r = ms.reduce((a, x) => a + x.total, 0), p2 = ms.filter(x => x.cost > 0).reduce((a, x) => a + (x.price - x.cost) * x.quantity, 0);
+                rows += `<tr><td>${MN[d.getMonth()]}/${String(d.getFullYear()).slice(2)}</td><td>${ms.reduce((a, x) => a + x.quantity, 0)}</td><td>${ent.filter(inM).reduce((a, x) => a + x.quantity, 0)}</td><td>${r ? formatMoney(r) : '—'}</td><td>${p2 ? formatMoney(p2) : '—'}</td></tr>`;
+            }
+            document.getElementById('repBox').innerHTML =
+                `<div style="display:flex;gap:8px;margin-bottom:10px">${kp('saíram', units + ' un.')}${rev > 0 ? kp('faturação', formatMoney(rev)) : ''}${wc.length ? kp('lucro', formatMoney(pf)) : ''}</div>` +
+                barChart(b) +
+                `<h3 style="margin:14px 0 6px">🏆 O que mais sai</h3>` +
+                (top.length ? top.map((t, i) => `<div onclick="sheet(${t.id || 0},1)" style="cursor:pointer;margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>${['🥇','🥈','🥉'][i] || ''} ${esc(t.n)}</span><b>${t.q} un.${(prods.find(p => p.id === t.id) || {}).stock !== undefined ? ' · resta ' + prods.find(p => p.id === t.id).stock : ''}</b></div><div style="background:#EEE;border-radius:6px;height:10px"><div style="width:${t.q / mx * 100}%;background:linear-gradient(90deg,#6C5CE7,#FD79A8);height:10px;border-radius:6px"></div></div></div>`).join('') +
+                    '<small>💡 Os 3 primeiros saem mais depressa: garanta a reposição para não perder vendas.</small>' : '<div class="empty">Ainda sem vendas neste período. Use o − nos produtos.</div>') +
+                (stopped.length ? `<p style="margin-top:8px;font-size:.85rem">⏸ Parados: ${stopped.map(p => esc(p.name)).join(', ')} — evite comprar mais.</p>` : '') +
+                `<h3 style="margin:14px 0 6px">🧮 Balancete mensal</h3><div style="overflow-x:auto"><table style="width:100%;font-size:.8rem;text-align:left;border-collapse:collapse"><tr><th>Mês</th><th>Saíram</th><th>Entraram</th><th>Faturação</th><th>Lucro</th></tr>${rows}</table></div>`;
+        }
+        function sheet(id, go) {
+            const data = getCompanyData(currentCompanyId), p = (data.products || []).find(x => x.id === id), el = document.getElementById('prodSheet');
+            if (!p) { window.sheetId = null; el.innerHTML = ''; return; }
+            window.sheetId = id;
+            const sl = (data.sales || []).filter(x => x.productId === id || x.productName === p.name), n = new Date();
+            const mo = sl.filter(x => { const d = new Date(x.date); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); }).reduce((a, x) => a + x.quantity, 0);
+            const pf = sl.filter(x => x.cost > 0).reduce((a, x) => a + (x.price - x.cost) * x.quantity, 0), b = [];
+            for (let i = 13; i >= 0; i--) { const d = new Date(Date.now() - i * DAY); b.push({ l: d.getDate(), v: sl.filter(x => new Date(x.date).toDateString() === d.toDateString()).reduce((a, x) => a + x.quantity, 0) }); }
+            el.innerHTML = `<div class="card" style="border:2px solid #6C5CE7"><h2>${esc(p.name)}</h2><div style="font-size:2rem;font-weight:800;color:#6C5CE7">${p.stock} <small style="font-size:.9rem;color:#636E72">em stock</small></div>
+                <p style="margin:6px 0">Vendeu <b>${mo}</b> este mês${pf ? ' • lucro ' + formatMoney(pf) : ''}</p>${barChart(b)}
+                <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-danger" onclick="quick(${id},-1)">− Saiu 1</button><button class="btn btn-success" onclick="quick(${id},1)">+ Entrou 1</button><button class="btn" onclick="sheet(0)">Fechar</button></div></div>`;
+            if (go) { switchTab('history'); el.scrollIntoView({ behavior: 'smooth' }); }
+        }
+        function quick(id, d) {
+            const data = getCompanyData(currentCompanyId), p = (data.products || []).find(x => x.id === id);
+            if (!p) return;
+            const uid = Date.now() * 1000 + Math.floor(Math.random() * 1000), now = new Date().toISOString();
+            if (d < 0) {
+                if (p.stock < 1) { toast('Sem stock de ' + p.name); return; }
+                p.stock--; (data.sales = data.sales || []).push({ id: uid, productId: p.id, productName: p.name, quantity: 1, price: p.price || 0, cost: p.cost || 0, total: p.price || 0, date: now });
+            } else { p.stock++; (data.entries = data.entries || []).push({ id: uid, productId: p.id, quantity: 1, cost: p.cost || 0, date: now }); }
+            saveCompanyData(currentCompanyId, data); updateUI();
+            toast((d < 0 ? '−1 ' : '+1 ') + p.name + ' • resta ' + p.stock);
+        }
+        function stockAlert() {
+            if (!currentCompanyId) return;
+            const l = (getCompanyData(currentCompanyId).products || []).filter(p => p.stock <= 5);
+            if (l.length) toast('⚠️ A acabar: ' + l.slice(0, 4).map(p => p.name + ' (' + p.stock + ')').join(', '));
+        }
+
         // Start
         migrateCompanies();
         purgeExpired();
@@ -860,6 +936,7 @@
             purgeExpired();
         });
         lock();
+        setTimeout(stockAlert, 800);
         if (companies.length && Date.now() - (+localStorage.mt_bk || 0) > 7 * DAY) setTimeout(() => toast('💾 Faça uma cópia de segurança (separador Histórico)'), 1500);
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
     </script>
