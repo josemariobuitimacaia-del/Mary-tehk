@@ -257,6 +257,12 @@
     </style>
 </head>
 <body>
+    <div id="toast" style="position:fixed;left:12px;right:12px;bottom:16px;max-width:496px;margin:auto;background:#2D3436;color:#fff;padding:12px 16px;border-radius:12px;display:none;z-index:99;font-size:.9rem"></div>
+    <div id="lock" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#6C5CE7,#FD79A8);z-index:100;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;padding:20px">
+        <div style="font-size:3rem">🔒</div><h2>Mary Tehk</h2>
+        <input type="password" inputmode="numeric" id="lockPin" placeholder="PIN" style="padding:14px;border-radius:12px;border:0;text-align:center;font-size:1.2rem;width:180px" onkeydown="if(event.key==='Enter')unlock()">
+        <button class="btn btn-success" onclick="unlock()">Entrar</button>
+    </div>
     <div class="container">
         <header>
             <img src="logo.jpg" alt="Mary Tehk" alt="Mary Tehk Logo" class="logo-img">
@@ -394,6 +400,11 @@
         <!-- Histórico -->
         <div id="tab-history" style="display:none;">
             <div class="card">
+                <h2>📊 Relatório</h2>
+                <div class="form-group"><select id="repPeriod" onchange="updateUI()"><option value="1">Hoje</option><option value="7" selected>Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="0">Tudo</option></select></div>
+                <div id="repBox"></div>
+            </div>
+            <div class="card">
                 <h2>📜 Histórico Completo</h2>
                 <div id="historyList">
                     <div class="empty"><div class="empty-icon">📜</div>Nenhum histórico</div>
@@ -401,6 +412,15 @@
             </div>
         </div>
 
+        <div class="card" style="margin-top:16px;">
+            <h2>🔒 Segurança e Cópias</h2>
+            <div class="form-group"><label>PIN (4 a 8 números) — para remover, escreva o PIN atual</label><input type="password" inputmode="numeric" id="pinNew" maxlength="8"></div>
+            <button class="btn" onclick="setPin()">Definir PIN</button>
+            <button class="btn btn-danger" onclick="removePin()">Remover PIN</button>
+            <hr style="margin:14px 0;border:0;border-top:1px solid #eee">
+            <button class="btn btn-success" onclick="exportData()">💾 Exportar cópia de segurança</button>
+            <div class="form-group" style="margin-top:10px;"><label>Importar cópia (.json)</label><input type="file" accept=".json" onchange="importData(event)"></div>
+        </div>
         <footer>Mary Tehk © 2026 • Aplicativo de Gestão • Angola</footer>
     </div>
 
@@ -506,7 +526,7 @@
                             <strong>${esc(p.name)} ${badge}</strong>
                             <small>${esc(p.category || 'Geral')} • ${formatMoney(p.price)}</small>
                         </div>
-                        <button class="btn btn-danger btn-small" onclick="deleteProduct(${p.id})">✕</button>
+                        <span><button class="btn btn-small" style="background:#DFE6E9;color:#2D3436" onclick="editProduct(${p.id})">✏️</button> <button class="btn btn-danger btn-small" onclick="deleteProduct(${p.id})">✕</button></span>
                     </div>
                 `;
             }).join('');
@@ -540,21 +560,18 @@
         function renderHistory(sales) {
             const list = document.getElementById('historyList');
             if (!list) return;
-            if (sales.length === 0) {
-                list.innerHTML = '<div class="empty"><div class="empty-icon">📜</div>Nenhum histórico</div>';
-                return;
-            }
-            list.innerHTML = sales.slice().reverse().slice(0, 30).map(s => `
-                <div class="sale-item">
-                    <div class="product-info">
-                        <strong>${esc(s.productName)}</strong>
-                        <small>${formatDate(s.date)}</small>
-                    </div>
-                    <strong style="color:#00B894;">${formatMoney(s.total)}</strong>
-                </div>
-            `).join('');
+            const days = +document.getElementById('repPeriod').value, from = days ? Date.now() - days * DAY : 0;
+            const f = sales.filter(x => new Date(x.date).getTime() >= from), tot = f.reduce((a, x) => a + x.total, 0), top = {};
+            f.forEach(x => top[x.productName] = (top[x.productName] || 0) + x.quantity);
+            document.getElementById('repBox').innerHTML = `<div class="product-item"><div class="product-info"><strong>${formatMoney(tot)}</strong><small>${f.length} vendas${f.length ? ' • média ' + formatMoney(tot / f.length) : ''}</small></div></div>` +
+                Object.entries(top).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n, q]) => `<div class="sale-item"><div class="product-info"><strong>🏆 ${esc(n)}</strong></div><strong>${q} un.</strong></div>`).join('');
+            list.innerHTML = sales.length ? sales.slice().reverse().slice(0, 50).map(x => `
+                <div class="sale-item"><div class="product-info"><strong>${esc(x.productName)} × ${x.quantity}</strong><small>${formatDate(x.date)}</small></div>
+                <span><strong style="color:#00B894;">${formatMoney(x.total)}</strong>
+                <button class="btn btn-small" style="background:#DFE6E9;color:#2D3436" onclick="printReceipt(${x.id})">🧾</button>
+                <button class="btn btn-danger btn-small" onclick="cancelSale(${x.id})">↩</button></span></div>`).join('')
+                : '<div class="empty"><div class="empty-icon">📜</div>Nenhum histórico</div>';
         }
-
         function updateSaleSelect(products) {
             const select = document.getElementById('saleProduct');
             if (!select) return;
@@ -565,14 +582,14 @@
         function createCompany() {
             const nameInput = document.getElementById('companyName');
             const name = nameInput.value.trim();
-            if (!name) { alert('Digite o nome da empresa'); return; }
+            if (!name) { toast('Digite o nome da empresa'); return; }
             const id = Date.now().toString();
             const now = new Date().toISOString();
             companies.push({ id, name, created: now, plan: 'min', lastPaid: now, payments: [] });
             localStorage.setItem('maryTehk_companies', JSON.stringify(companies));
             nameInput.value = '';
             updateUI();
-            alert('Empresa "' + name + '" criada com sucesso!');
+            toast('Empresa "' + name + '" criada com sucesso!');
         }
 
         function selectCompany(id) {
@@ -594,18 +611,25 @@
         }
 
         function addProduct() {
-            if (!currentCompanyId) { alert('Selecione uma empresa primeiro!'); return; }
+            if (!currentCompanyId) { toast('Selecione uma empresa primeiro!'); return; }
             const name = document.getElementById('productName').value.trim();
             const category = document.getElementById('productCategory').value;
             const price = parseFloat(document.getElementById('productPrice').value);
             const stock = parseInt(document.getElementById('productStock').value);
-            if (!name || isNaN(price) || isNaN(stock)) { alert('Preencha todos os campos corretamente'); return; }
+            if (!name || isNaN(price) || isNaN(stock)) { toast('Preencha todos os campos corretamente'); return; }
 
             const data = getCompanyData(currentCompanyId);
             data.products = data.products || [];
+            if (window.editId) {
+                const ep = data.products.find(p => p.id === window.editId);
+                if (ep) { Object.assign(ep, { name, category, price, stock }); }
+                window.editId = null; saveCompanyData(currentCompanyId, data);
+                ['productName','productPrice','productStock'].forEach(i => document.getElementById(i).value = '');
+                updateUI(); toast('Produto atualizado!'); return;
+            }
             const co = companies.find(c => c.id == currentCompanyId);
             const lim = PLANS[(co && co.plan) || 'min'].maxProducts;
-            if (data.products.length >= lim) { alert('Limite de ' + lim + ' produtos do plano Mínimo. Passe ao plano Máximo no separador Pagamento.'); switchTab('payments'); return; }
+            if (data.products.length >= lim) { toast('Limite de ' + lim + ' produtos do plano Mínimo. Passe ao plano Máximo no separador Pagamento.'); switchTab('payments'); return; }
             data.products.push({ id: Date.now(), name, category, price, stock });
             saveCompanyData(currentCompanyId, data);
 
@@ -613,23 +637,24 @@
             document.getElementById('productPrice').value = '';
             document.getElementById('productStock').value = '';
             updateUI();
-            alert('Produto adicionado!');
+            toast('Produto adicionado!');
         }
 
         function registerSale() {
-            if (!currentCompanyId) { alert('Selecione uma empresa primeiro!'); return; }
+            if (!currentCompanyId) { toast('Selecione uma empresa primeiro!'); return; }
             const productId = parseInt(document.getElementById('saleProduct').value);
             const quantity = parseInt(document.getElementById('saleQuantity').value);
-            if (!productId || !quantity || quantity < 1) { alert('Selecione produto e quantidade'); return; }
+            if (!productId || !quantity || quantity < 1) { toast('Selecione produto e quantidade'); return; }
 
             const data = getCompanyData(currentCompanyId);
             const product = data.products.find(p => p.id === productId);
-            if (!product || product.stock < quantity) { alert('Stock insuficiente!'); return; }
+            if (!product || product.stock < quantity) { toast('Stock insuficiente!'); return; }
 
             product.stock -= quantity;
             data.sales = data.sales || [];
             data.sales.push({
                 id: Date.now(),
+                productId: product.id,
                 productName: product.name,
                 quantity,
                 price: product.price,
@@ -639,7 +664,7 @@
             saveCompanyData(currentCompanyId, data);
             document.getElementById('saleQuantity').value = '1';
             updateUI();
-            alert('Venda registada com sucesso!');
+            toast('Venda registada com sucesso!');
         }
 
         function deleteProduct(id) {
@@ -667,7 +692,7 @@
             a.download = 'mary-tehk-dados-' + new Date().toISOString().slice(0,10) + '.json';
             a.click();
             URL.revokeObjectURL(url);
-            alert('Dados exportados com sucesso!');
+            localStorage.mt_bk = Date.now(); toast('Dados exportados com sucesso!');
         }
 
         function importData(event) {
@@ -686,12 +711,12 @@
                             saveCompanyData(id, data.companyData[id]);
                         });
                         updateUI();
-                        alert('Dados importados com sucesso!');
+                        toast('Dados importados com sucesso!');
                     } else {
-                        alert('Ficheiro inválido');
+                        toast('Ficheiro inválido');
                     }
                 } catch(err) {
-                    alert('Erro ao importar: ' + err.message);
+                    toast('Erro ao importar: ' + err.message);
                 }
             };
             reader.readAsText(file);
@@ -749,9 +774,9 @@
         }
         function registerPayment() {
             const c = companies.find(x => x.id == currentCompanyId);
-            if (!c) { alert('Selecione uma empresa primeiro!'); return; }
+            if (!c) { toast('Selecione uma empresa primeiro!'); return; }
             const plan = document.getElementById('payPlan').value, p = PLANS[plan];
-            if ((getCompanyData(c.id).products || []).length > p.maxProducts) { alert('Esta empresa tem mais de ' + p.maxProducts + ' produtos. Escolha o plano Máximo.'); return; }
+            if ((getCompanyData(c.id).products || []).length > p.maxProducts) { toast('Esta empresa tem mais de ' + p.maxProducts + ' produtos. Escolha o plano Máximo.'); return; }
             if (!confirm('Confirmar pagamento de ' + formatMoney(p.price) + ' (plano ' + p.name + ')?')) return;
             const now = new Date().toISOString();
             c.plan = plan; c.lastPaid = now;
@@ -759,7 +784,7 @@
             saveCompanies();
             document.getElementById('payRef').value = '';
             updateUI();
-            alert('Pagamento registado! Válido por ' + PERIOD_DAYS + ' dias.');
+            toast('Pagamento registado! Válido por ' + PERIOD_DAYS + ' dias.');
         }
         // Apaga empresas sem pagamento há 34 dias (corre ao abrir, de hora a hora e ao voltar à app)
         function purgeExpired() {
@@ -770,7 +795,58 @@
             saveCompanies();
             if (gone.some(c => c.id == currentCompanyId)) { currentCompanyId = null; localStorage.removeItem('maryTehk_currentCompany'); }
             updateUI();
-            alert('Empresas apagadas por falta de pagamento (' + DELETE_AFTER_DAYS + ' dias): ' + gone.map(c => c.name).join(', '));
+            toast('Empresas apagadas por falta de pagamento (' + DELETE_AFTER_DAYS + ' dias): ' + gone.map(c => c.name).join(', '));
+        }
+
+        // ===== Extras =====
+        function toast(m) {
+            const t = document.getElementById('toast');
+            t.textContent = m; t.style.display = 'block'; clearTimeout(t._h);
+            t._h = setTimeout(() => t.style.display = 'none', 2500 + m.length * 40);
+        }
+        function editProduct(id) {
+            const p = (getCompanyData(currentCompanyId).products || []).find(x => x.id === id);
+            if (!p) return;
+            window.editId = id;
+            document.getElementById('productName').value = p.name;
+            document.getElementById('productCategory').value = p.category || 'Geral';
+            document.getElementById('productPrice').value = p.price;
+            document.getElementById('productStock').value = p.stock;
+            document.getElementById('productName').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            toast('Altere os dados e toque em adicionar para guardar');
+        }
+        function cancelSale(id) {
+            if (!confirm('Anular esta venda? O stock volta ao produto.')) return;
+            const d = getCompanyData(currentCompanyId), i = (d.sales || []).findIndex(x => x.id === id);
+            if (i < 0) return;
+            const x = d.sales.splice(i, 1)[0];
+            const p = (d.products || []).find(q => q.id === x.productId) || (d.products || []).find(q => q.name === x.productName);
+            if (p) p.stock += x.quantity;
+            saveCompanyData(currentCompanyId, d); updateUI(); toast('Venda anulada');
+        }
+        function printReceipt(id) {
+            const co = companies.find(c => c.id == currentCompanyId), x = getCompanyData(currentCompanyId).sales.find(q => q.id === id);
+            const w = window.open('', '_blank');
+            if (!w || !x) { toast('Permita pop-ups para imprimir'); return; }
+            w.document.write(`<title>Recibo</title><body style="font-family:monospace;max-width:300px;margin:20px auto"><h3 style="text-align:center">${esc(co.name)}</h3><hr>${esc(x.productName)}<br>${x.quantity} x ${formatMoney(x.price)}<hr><b>TOTAL ${formatMoney(x.total)}</b><br><small>${formatDate(x.date)} • Nº ${x.id}</small><p style="text-align:center">Obrigado!</p><script>print()<\/script>`);
+            w.document.close();
+        }
+        const sha = async t => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('mt:' + t)))].map(b => b.toString(16).padStart(2, '0')).join('');
+        async function setPin() {
+            const v = document.getElementById('pinNew').value;
+            if (!/^\d{4,8}$/.test(v)) { toast('O PIN deve ter 4 a 8 números'); return; }
+            localStorage.mt_pin = await sha(v); document.getElementById('pinNew').value = ''; toast('PIN definido 🔒');
+        }
+        async function removePin() {
+            if (!localStorage.mt_pin) { toast('Não há PIN definido'); return; }
+            if (await sha(document.getElementById('pinNew').value) !== localStorage.mt_pin) { toast('Escreva o PIN atual para remover'); return; }
+            localStorage.removeItem('mt_pin'); document.getElementById('pinNew').value = ''; toast('PIN removido');
+        }
+        function lock() { if (localStorage.mt_pin) document.getElementById('lock').style.display = 'flex'; }
+        async function unlock() {
+            const i = document.getElementById('lockPin');
+            if (await sha(i.value) === localStorage.mt_pin) { document.getElementById('lock').style.display = 'none'; i.value = ''; }
+            else { toast('PIN errado'); i.value = ''; }
         }
 
         // Start
@@ -778,7 +854,13 @@
         purgeExpired();
         updateUI();
         setInterval(purgeExpired, 36e5);
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) purgeExpired(); });
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) { window._away = Date.now(); return; }
+            if (window._away && Date.now() - window._away > 6e4) lock();
+            purgeExpired();
+        });
+        lock();
+        if (companies.length && Date.now() - (+localStorage.mt_bk || 0) > 7 * DAY) setTimeout(() => toast('💾 Faça uma cópia de segurança (separador Histórico)'), 1500);
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
     </script>
 
