@@ -582,7 +582,7 @@
             if (!name) { toast('Digite o nome da empresa'); return; }
             const id = Date.now().toString();
             const now = new Date().toISOString();
-            companies.push({ id, name, created: now, plan: 'min', lastPaid: now, payments: [] });
+            companies.push({ id, name, created: now, plan: 'pes', lastPaid: now, payments: [] });
             localStorage.setItem('maryTehk_companies', JSON.stringify(companies));
             nameInput.value = '';
             updateUI();
@@ -628,7 +628,7 @@
             }
             const co = companies.find(c => c.id == currentCompanyId);
             const lim = PLANS[(co && co.plan) || 'min'].maxProducts;
-            if (data.products.length >= lim) { toast('Limite de ' + lim + ' produtos do plano Mínimo. Passe ao plano Máximo no separador Pagamento.'); switchTab('payments'); return; }
+            if (data.products.length >= lim) { toast('Limite de ' + lim + ' produtos do seu plano. Veja o separador Pagamento para mudar de plano.'); switchTab('payments'); return; }
             data.products.push({ id: Date.now(), name, category, price, stock, cost });
             document.getElementById('productCost').value = '';
             saveCompanyData(currentCompanyId, data);
@@ -735,6 +735,7 @@
         // ===== Pagamentos =====
         // Preços editáveis. Não há destino do dinheiro definido (PAYMENT_INFO fica vazio por agora).
         const PLANS = {
+            pes: { name: 'Pessoal', price: 1500, maxProducts: 30 },
             min: { name: 'Mínimo', price: 5000, maxProducts: 50 },
             max: { name: 'Máximo', price: 15000, maxProducts: Infinity }
         };
@@ -778,7 +779,7 @@
             const c = companies.find(x => x.id == currentCompanyId);
             if (!c) { toast('Selecione uma empresa primeiro!'); return; }
             const plan = document.getElementById('payPlan').value, p = PLANS[plan];
-            if ((getCompanyData(c.id).products || []).length > p.maxProducts) { toast('Esta empresa tem mais de ' + p.maxProducts + ' produtos. Escolha o plano Máximo.'); return; }
+            if ((getCompanyData(c.id).products || []).length > p.maxProducts) { toast('Esta empresa tem mais de ' + p.maxProducts + ' produtos. Escolha um plano maior.'); return; }
             if (!confirm('Confirmar pagamento de ' + formatMoney(p.price) + ' (plano ' + p.name + ')?')) return;
             const now = new Date().toISOString();
             c.plan = plan; c.lastPaid = now;
