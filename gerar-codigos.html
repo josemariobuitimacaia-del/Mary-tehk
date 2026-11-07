@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gerar códigos Mukanda</title>
+<body style="font:16px system-ui;max-width:640px;margin:20px auto;padding:0 16px"><h2>Gerar códigos de acesso</h2>
+<p>Escreva um código por linha (ex: MK-7391). Copie o resultado para <code>codigos</code> em <code>public/config.js</code>. Guarde os códigos em texto para os enviar aos clientes.</p>
+<textarea id="i" rows="6" style="width:100%"></textarea><button id="b" style="margin:8px 0;padding:10px 16px">Gerar</button><pre id="o" style="white-space:pre-wrap;background:#eee;padding:10px"></pre>
+<script>document.getElementById('b').onclick=async function(){var r=[];for(var l of document.getElementById('i').value.split('\n')){l=l.trim().toUpperCase();if(!l)continue;var h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(l));r.push("'"+Array.from(new Uint8Array(h)).map(n=>n.toString(16).padStart(2,'0')).join('')+"'")}document.getElementById('o').textContent='codigos: ['+r.join(',\n  ')+'],'}</script>

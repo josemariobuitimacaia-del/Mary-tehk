@@ -254,9 +254,18 @@
             font-size: 0.85rem;
             padding: 10px;
         }
+            .tab { white-space: nowrap; font-size: 0.72rem; padding-left: 4px; padding-right: 4px; }
     </style>
 </head>
 <body>
+<div id="splash" style="position:fixed;inset:0;z-index:200;background:linear-gradient(135deg,#6C5CE7,#FD79A8);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;padding:24px;text-align:center;transition:opacity .4s;cursor:pointer">
+    <img src="logo.jpg" alt="Mary Tehk" style="width:150px;height:150px;object-fit:contain;background:#fff;border-radius:28px;padding:8px;animation:spPop .7s ease-out">
+    <h1 style="font-size:2rem;margin:0">Mary Tehk</h1>
+    <p style="margin:0;opacity:.9">Gestão Multi Empresas</p>
+    <p id="splashTip" style="margin:10px 0 0;font-size:.95rem;max-width:260px;min-height:44px"></p>
+    <div style="width:140px;height:5px;background:rgba(255,255,255,.35);border-radius:3px;overflow:hidden"><div style="height:100%;background:#fff;animation:spBar 2.2s linear forwards"></div></div>
+</div>
+<style>@keyframes spPop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}@keyframes spBar{from{width:0}to{width:100%}}</style>
     <div id="toast" style="position:fixed;left:12px;right:12px;bottom:16px;max-width:496px;margin:auto;background:#2D3436;color:#fff;padding:12px 16px;border-radius:12px;display:none;z-index:99;font-size:.9rem"></div>
     <div id="lock" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#6C5CE7,#FD79A8);z-index:100;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;padding:20px">
         <div style="font-size:3rem">🔒</div><h2>Mary Tehk</h2>
@@ -327,6 +336,11 @@
 
         <!-- Produtos -->
         <div id="tab-products" style="display:none;">
+            <div id="noCoWarn" class="card" style="display:none;border-left:6px solid #FDCB6E;">
+                <strong>Primeiro escolha uma empresa</strong>
+                <p style="margin:6px 0 10px;font-size:0.9rem;">Para adicionar produtos, vá a Empresas e toque numa empresa (ou crie uma).</p>
+                <button class="btn btn-primary btn-small" onclick="switchTab('companies')">Ir para Empresas</button>
+            </div>
             <div class="card">
                 <h2>📦 Novo Produto</h2>
                 <div class="form-group">
@@ -458,6 +472,7 @@
             const company = companies.find(c => c.id == currentCompanyId);
             document.getElementById('currentCompanyName').textContent = company ? company.name : 'Nenhuma empresa selecionada';
             renderPayments();
+            const w = document.getElementById('noCoWarn'); if (w) w.style.display = currentCompanyId ? 'none' : 'block';
 
             if (!currentCompanyId) {
                 document.getElementById('totalProducts').textContent = '0';
@@ -833,7 +848,7 @@
             const co = companies.find(c => c.id == currentCompanyId), x = getCompanyData(currentCompanyId).sales.find(q => q.id === id);
             const w = window.open('', '_blank');
             if (!w || !x) { toast('Permita pop-ups para imprimir'); return; }
-            w.document.write(`<title>Recibo</title><body style="font-family:monospace;max-width:300px;margin:20px auto"><h3 style="text-align:center">${esc(co.name)}</h3><hr>${esc(x.productName)}<br>${x.quantity} x ${formatMoney(x.price)}<hr><b>TOTAL ${formatMoney(x.total)}</b><br><small>${formatDate(x.date)} • Nº ${x.id}</small><p style="text-align:center">Obrigado!</p><script>print()<\/script>`);
+            w.document.write(`<title>Recibo</title><body style="font-family:monospace;max-width:300px;margin:20px auto"><h3 style="text-align:center">${esc(co.name)}</h3><hr>${esc(x.productName)}<br>${x.quantity} x ${formatMoney(x.price)}<hr><b>TOTAL ${formatMoney(x.total)}</b><br><small>${formatDate(x.date)} • Nº ${x.id}</small><p style="text-align:center">Obrigado!</p><p style="text-align:center;font-size:11px">Documento sem valor fiscal</p><script>print()<\/script>`);
             w.document.close();
         }
         const sha = async t => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('mt:' + t)))].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -926,6 +941,15 @@
             if (l.length) toast('⚠️ A acabar: ' + l.slice(0, 4).map(p => p.name + ' (' + p.stock + ')').join(', '));
         }
 
+        // Ecrã de abertura
+        (function () {
+            const tips = ['Toque no − para dar baixa de uma venda', 'Toque no + quando chegar mercadoria', 'Veja no Painel o que mais sai', 'Faça uma cópia de segurança de vez em quando'];
+            const sp = document.getElementById('splash');
+            document.getElementById('splashTip').textContent = tips[Math.floor(Math.random() * tips.length)];
+            const close = () => { sp.style.opacity = '0'; setTimeout(() => sp.remove(), 400); };
+            setTimeout(close, 2200); sp.onclick = close;
+        })();
+
         // Start
         migrateCompanies();
         purgeExpired();
@@ -937,7 +961,7 @@
             purgeExpired();
         });
         lock();
-        setTimeout(stockAlert, 800);
+        setTimeout(stockAlert, 2800);
         if (companies.length && Date.now() - (+localStorage.mt_bk || 0) > 7 * DAY) setTimeout(() => toast('💾 Faça uma cópia de segurança (separador Histórico)'), 1500);
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
     </script>
