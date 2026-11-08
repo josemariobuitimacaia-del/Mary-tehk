@@ -756,7 +756,7 @@
         };
         const PERIOD_DAYS = 30, DELETE_AFTER_DAYS = 34, DAY = 864e5;
         const AUTO_DELETE = false; // ligar (true) quando vender a empresas
-        const PAYMENT_INFO = '';
+        const PAYMENT_INFO = 'Pagamento por transferência bancária. Banco: BFA • NIB: 0006 0000 3840 9919 3011 7. Depois de pagar, envie o comprovativo e escreva a referência abaixo.';
         const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const saveCompanies = () => localStorage.setItem('maryTehk_companies', JSON.stringify(companies));
         const daysLeft = c => Math.ceil((new Date(c.lastPaid).getTime() + DELETE_AFTER_DAYS * DAY - Date.now()) / DAY);
